@@ -1,0 +1,30 @@
+---
+insertion:
+  A: 0.25
+  C: 0.25
+  G: 0.25
+  T: 0.25
+deletion:
+  A: 0.25
+  C: 0.25
+  G: 0.25
+  T: 0.25
+transition:
+  AG: 2     ## 2 H bonds -> 3 H bonds
+  GA: 2     ## 3 H bonds -> 2 H bonds
+  CT: 2     ## 3 H bonds -> 2 H bonds
+  TC: 2     ## 2 H bonds -> 3 H bonds
+transversion:
+  A:
+    T: 0.5  ## 2 H bonds
+    C: 0.5  ## 2 H bonds -> 3 H bonds
+  C:
+    G: 0.5  ## 3 H bonds
+    A: 0.5  ## 3 H bonds -> 2 H bonds
+  G:
+    C: 0.5  ## 3 H bonds
+    T: 0.5  ## 3 H bonds -> 2 H bonds
+  T:
+    A: 0.5  ## 2 H bounds
+    G: 0.5  ## 2 H bounds -> 3 H bonds
+---

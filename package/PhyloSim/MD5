@@ -1,0 +1,7 @@
+9c403ea0e7e6eb444b1677118a1c7380  ./man/dst_idx.Rd
+d63aa5133af3d7a08cbf60e5c5a08370  ./NAMESPACE
+71a88d9b5d2fef4a255a45dce2460ad1  ./R/dst_idx.R
+5c915be4d95fd4edc2233d63679cee45  ./R/global.R
+62a485c4036a460c64dc59f9e1ff7b26  ./src/dst_idx.cpp
+4bfdcd483d0af165454078efa8cd91cb  ./src/exports.cpp
+9d00c887762fabf2b5565890fceb2005  ./DESCRIPTION
