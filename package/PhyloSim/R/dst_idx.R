@@ -5,7 +5,7 @@
 ##        Université de Montréal
 ##        Montreal, QC, Canada
 ##
-##    **Distance vector indexing function**
+##    ** Distance vector indexing function **
 ##
 ##    This file is part of PhyloSim
 ##
