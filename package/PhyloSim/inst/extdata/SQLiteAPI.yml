@@ -1,0 +1,64 @@
+---
+node:
+  create: |
+    CREATE TABLE node (
+      cld       INTEGER
+    )
+  indices:
+diss:
+  create: |
+    CREATE TABLE diss (
+      i         INTEGER REFERENCE node,
+      j         INTEGER REFERENCE node,
+      d         REAL
+    )
+  indices:
+  - i
+  - j
+edge:
+  create: |
+    CREATE TABLE edge (
+      i         INTEGER REFERENCE node,
+      j         INTEGER REFERENCE node,
+      contrib   REAL
+    )
+  indices:
+  - i
+  - j
+seq:
+  create: |
+    CREATE TABLE seq (
+      name      TEXT,
+      note      TEXT
+    )
+  indices:
+seq_content:
+  create: |
+    CREATE TABLE seq_content (
+      seq       INTEGER REFERENCE seq,
+      node      INTEGER REFERENCE node,
+      content   BLOB
+    )
+  indices:
+  - seq
+  - node
+trait:
+  create: |
+    CREATE TABLE trait (
+      name      TEXT,
+      note      TEXT
+    )
+  indices:
+trait_content:
+  create: |
+    CREATE TABLE trait_content (
+      trait     INTEGER REFERENCE trait,
+      node      INTEGER REFERENCE node,
+      state     INTEGER,
+      optim     REAL,
+      value     REAL
+    )
+  indices:
+  - trait
+  - node
+---

@@ -26,9 +26,43 @@ evolution model (see details).}
 \item{...}{further arguments to be passed to other functions and methods}
 }
 \value{
+Function \code{read.TraitEvolMod} returns a list with one or more
+members, each of which being the parameters of a trait evolution model. Each
+trait evolution parameter set is made of the following member:
 \describe{
-  \item{ \code{read.TraitEvolMod} }{...}
-  \item{ \code{traitEvolMod} }{...}
+  \item{\code{$name}}{the name of the trait,}
+  \item{\code{$sigma}}{the trait variance parameter,}
+  \item{\code{$step}}{the trait evolution initial step size,}
+  \item{\code{$alpha}}{the selection rate,}
+  \item{\code{optima}}{(may be omitted when \code{alpha = 0}) one or more the
+  trait optima to be used when \code{alpha > 0},}
+  \item{\code{$transition}}{(may be omitted when only one optimum is
+  provided) a n-by-n transition intensity matrix, where n is the number of
+  optima.}
+}
+Function \code{traitEvolMod} returns a TEM-class object, which consists of 8
+member functions:
+\describe{
+  \item{\code{$getName}}{has no argument and returns the name of the trait,}
+  \item{\code{$getStep}}{has no argument and returns the size of the
+  simulation time step}
+  \item{\code{$setStep}}{is given the time step as an argument and sets,
+  the simulation time step, including the recalculation of the transition
+  intensity matrix in the case of a trait with multiple optima,}
+  \item{\code{$getOptima}}{has no argument and returns the trait optimum
+  values,}
+  \item{\code{getTransition}}{has no argument and returns the transition
+  density matrix,}
+  \item{\code{getProb}}{has no argument and returns the transition
+  probability matrix,}
+  \item{\code{$updateState}}{is given the index of the effective trait
+  optimum and returns the updated index (allows shifts in trait optimum),}
+  \item{\code{updateValue}}{is given the value of the trait and, optionally,
+  the index of the optimum state, at returns the updated trait value,}
+  \item{\code{dumpConfig}}{has no argument and returns the trait evolution
+  model parameters as a list, and}
+  \item{\code{print}}{has no argument and prints the parameters of the trait
+  model on the screen (returns \code{NULL} invisibly).}
 }
 }
 \description{
@@ -37,7 +71,30 @@ Ornstein-Uhlenbeck process, optionally with trait optimal value evolving
 following a Markov process.
 }
 \details{
-...
+The trait evolution model is based on a random walk process of one
+of categories: Weiner process and the Ornstein-Uhlenbeck process. The Weiner
+process, also known as 'Brownian motion' is a random neutral process with
+unbounded traits values. It is characterized using a single variance
+parameter called \code{sigma} that dictates to what extent the trait value
+fluctuates randomly in time.
+
+The Ornstein-Uhlenbeck process is a random process with attractors (optima),
+with values varying about these optima (or single optimum). It is notable
+that whenever multiple optima are possible, only a single optimum is
+effective at any given time. The Ornstein-Uhlenbeck process involve two more
+values: the trait optimum effective at a particular time and the selection
+rate (\code{alpha}). The optima represents the value toward which the
+trait is attracted, whereas the value of \code{alpha} dictates to what
+extent such an attraction occurs. When \code{alpha = 0}, the optimum stops
+being an attractor and the Ornstein-Uhlenbeck process becomes purely a Weiner
+process, whereas when \code{alpha} is very large, the trait value detracts
+only slightly from its optimal value.
+
+The trait simulation interface enabled to handle traits evolving neutrally
+(pure Weiner process), and according to an Ornstein-Uhlenbeck process with
+one or many optima. When many optima are used, transitions among the values
+are simulated as a Markov process. For that purpose, the simulator needs to
+be provided with a transition density matrix.
 }
 \examples{
 ## Load the example of a configuration file provided with the

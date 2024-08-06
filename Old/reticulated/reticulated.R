@@ -1,0 +1,252 @@
+
+## rm(list=ls())
+library(yaml)
+library(Rcpp)
+library(PhyloSim)  ## detach("package:PhyloSim", unload=TRUE)
+library(ape)
+library(rgl)
+
+source("aux.R")
+
+## Reticulated sequence simulation
+
+## Load the example of a configuration file provided with the
+## package:
+yaml.load_file(
+  system.file(
+    package = "PhyloSim",
+    "extdata",
+    "evolMod.yml"
+  )
+) -> dnaParam
+
+## The configuration list is located in member `$DNA`
+read.mutationMat(
+  dnaParam$DNA 
+) -> I
+
+## The transition intensity matrix:
+I
+
+## The trait evolution model parameters:
+dnaParam$trait %>%
+  lapply(read.TraitEvolMod) -> traitMod
+
+set.seed(12345)
+
+seqId <- rep(LETTERS[1:20], each=500)
+
+simulate_network(
+  I = I,
+  NS = 1000,
+  NN = 10000,
+  SID = seqId,
+  traitMod = traitMod,
+  initState = c(2,NA,1,1),
+  initValue = c(50,0,15,-25),
+  NC = function() 1 + rpois(1, 4),
+  NP = function() 1 + rpois(1, 3),
+  gamma.shape = 5,
+  gamma.scale = 5e-4,
+  timestep = 1,
+  maxDst = function() runif(1,3,7),
+  prob = c(0.3,rep(0.175,4)),
+  removeGapOnly = FALSE,
+  verbose = TRUE
+) -> res
+
+
+## Save the sequences:
+for(i in unique(seqId))
+  res$sqn[,seqId == i] %>%
+  concatenate(discard = "-") %>%
+  write.fasta(
+    file = sprintf("Sequence_raw_%s.fst",i),
+    linebreak = 70
+  )
+
+## Save the sequences:
+for(i in unique(seqId))
+  res$sqn[,seqId == i] %>%
+  .[,apply(., 2L, function(x) !all(x == charToRaw("-")))] %>%
+  concatenate %>%
+  write.fasta(
+    file = sprintf("Sequence_Aligned_%s.fst",i),
+    linebreak = 70
+  )
+
+## Calculate the principal coordinates of the pairwise distance matrix for
+## displaying the networks:
+G <- -0.5*as.matrix(res$dst^2)
+delta <- t(t(G - rowMeans(G)) - colMeans(G)) + mean(G)
+## rowMeans(delta)
+## colMeans(delta)
+## mean(delta)
+eig <- eigen(delta)
+
+## Two dimensional network plot:
+coords <- eig$vectors[,1:2] %*% diag(sqrt(eig$values[1:2]))
+plot(coords, type = "n")
+
+for(i in 1L:length(res$edge))
+  if(length(res$edge[[i]])) {
+    segments(
+      x0 = coords[i,1],
+      x1 = coords[res$edge[[i]],1],
+      y0 = coords[i,2],
+      y1 = coords[res$edge[[i]],2],
+      lwd = 0.25,
+      col="grey"
+    )
+    ## if(is.null(locator(1L))) break
+  }
+points(coords, cex=0.25)
+
+## Highlighting a node (blue), its ascendant (parent) nodes and edges (green),
+## and its descendent (children) nodes and edges (red):
+
+n <- 10   ## Node 10 was chosen for this example
+wh <- which(unlist(lapply(res$edge,function(x, y) any(x == y), y=n)))
+
+if(length(wh)) {
+  segments(x0=coords[wh,1L], x1=coords[n,1L], y0=coords[wh,2L],
+           y1=coords[n,2L], col = "green")
+  points(x=coords[wh,1L], y=coords[wh,2L], col="green", cex=0.5)
+}
+
+if(length(res$edge[[n]])) {
+  segments(x0=coords[n,1L], x1=coords[res$edge[[n]],1L], y0=coords[n,2L],
+           y1=coords[res$edge[[n]],2L], col = "red")
+  points(x=coords[res$edge[[n]],1L], y=coords[res$edge[[n]],2L], col="red",
+         cex=0.5)
+}
+
+points(x=coords[n,1L], y=coords[n,2L], col="blue", cex=0.5)
+
+
+## Three-dimensional network display using package RGL
+
+## Calculating the indices of the segments:
+res$edge %>%
+  lapply(length) %>%
+  unlist %>%
+  sum %>%
+  matrix(
+    data = NA,
+    nrow=2L,
+    ncol=.
+  ) -> segment_idx
+
+j <- 1L
+for(i in 1L:length(res$edge)) {
+  n <- length(res$edge[[i]])
+  if(n) {
+    segment_idx[1L,(j - 1L) + 1L:n] <- rep(i,length(res$edge[[i]]))
+    segment_idx[2L,(j - 1L) + 1L:n] <- res$edge[[i]]
+  }
+  j <- j + n
+}
+rm(j,n)
+## segment_idx[1L,]
+## segment_idx[2L,]
+
+## Getting the first three principal coordinates of the dissimilarity matrix:
+coords3d <- eig$vectors[,1L:3L] %*% diag(sqrt(eig$values[1L:3L]))
+
+wire3d(
+  mesh3d(
+    x = coords3d,
+    segments = segment_idx
+  ),
+  col="grey"
+)
+
+points3d(coords3d[1L,], col="orange")
+points3d(coords3d[res$cld == 0L,], col="red")
+points3d(coords3d[res$cld > 0L,], col="green")
+
+rglwidget()
+rgl.clear()
+
+
+## These are the trait evolution models that were used:
+res$trait$tem
+
+## Obtain the nodes that are tips:
+res$edge %>%
+  lapply(function(x) !length(x)) %>%
+  unlist %>%
+  which -> tips
+
+## Plot the trait simulation results for the first trail:
+i <- getDescTrail(res, tips[1L])
+
+par(mar=c(4,4,1,1))
+plot(NA, xlim=c(0,(length(i) - 1)), ylim=range(res$trait$traitLog[i,]),
+     xlab="Time", ylab="Trait value", las=1L)
+lines(x=0:(length(i) - 1), y=res$trait$traitLog[i,1L], col="black")
+if(!is.na(res$trait$tem[[1L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res$trait$optimLog[i,1L], col="black", lty=3L)
+lines(x=0:(length(i) - 1), y=res$trait$traitLog[i,2L], col="red")
+if(!is.na(res$trait$tem[[2L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res$trait$optimLog[i,2L], col="red", lty=3L)
+lines(x=0:(length(i) - 1), y=res$trait$traitLog[i,3L], col="blue")
+if(!is.na(res$trait$tem[[3L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res$trait$optimLog[i,3L], col="blue", lty=3L)
+lines(x=0:(length(i) - 1), y=res$trait$traitLog[i,4L], col="green")
+if(!is.na(res$trait$tem[[4L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res$trait$optimLog[i,4L], col="green", lty=3L)
+
+## A larger example:
+simulate_network(
+  I = I,
+  NS = 25000,
+  NN = 250,
+  traitMod = traitMod,
+  initState = c(2,NA,1,1),
+  initValue = c(50,0,15,-25),
+  NC = function() 1L + rpois(1L, 0.75),
+  NP = function() 1L + rpois(1L, 0.25),
+  gamma.shape = 5,
+  gamma.scale = 5e-4,
+  timestep = 1,
+  maxDst = 4,
+  prob = c(0.3,rep(0.175,4L)),
+  removeGapOnly = TRUE,
+  verbose = TRUE
+) -> res2
+
+res2$edge %>%
+  lapply(function(x) length(x)) %>%
+  unlist -> desc
+
+## Obtain the tips (node without children):
+res2$edge %>%
+  lapply(function(x) length(x) == 0L) %>%
+  unlist %>%
+  which -> tips
+
+## any(desc[tips] != 0L)
+
+## Plot the trait simulation results for the first trail:
+i <- getDescTrail(res2, tips[100L])
+
+par(mar=c(4,4,1,1))
+plot(NA, xlim=c(0,(length(i) - 1)), ylim=range(res2$trait$traitLog[i,]),
+     xlab="Time", ylab="Trait value", las=1L)
+lines(x=0:(length(i) - 1), y=res2$trait$traitLog[i,1L], col="black")
+if(!is.na(res2$trait$tem[[1L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res2$trait$optimLog[i,1L], col="black", lty=3L)
+lines(x=0:(length(i) - 1), y=res2$trait$traitLog[i,2L], col="red")
+if(!is.na(res2$trait$tem[[2L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res2$trait$optimLog[i,2L], col="red", lty=3L)
+lines(x=0:(length(i) - 1), y=res2$trait$traitLog[i,3L], col="blue")
+if(!is.na(res2$trait$tem[[3L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res2$trait$optimLog[i,3L], col="blue", lty=3L)
+lines(x=0:(length(i) - 1), y=res2$trait$traitLog[i,4L], col="green")
+if(!is.na(res2$trait$tem[[4L]]$getOptima())[1L])
+  lines(x=0:(length(i) - 1), y=res2$trait$optimLog[i,4L], col="green", lty=3L)
+
+## Clean up:
+rm(dnaParam,I,traitMod,res,res2,show.sequences,getDescTrail,i,tips,desc,
+   network_round_plot)
