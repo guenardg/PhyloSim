@@ -1,4 +1,33 @@
 
+## Next: functions openNetwork and closeNetwork have to be canned.
+
+## Opening procedure:
+## 
+## The function take a an optional file name if no file name is provided, a
+## connection is opened in the memory, the database is initialized, and the
+## function returns the data base connection.
+## 
+## If a file name is provided, it is used to open a connection (with the
+## appended .sim suffix). Then, the function verifies if the database is empty.
+## If the database is empty, it initializes the database with the yaml data file
+## provided with the package and returns the data base connection. If the data
+## base is not empty, the function verifies whether the data table are all
+## present. If they are all present, it returns the connection. If any is
+## missing, it issues an error message and stops without returning anything.
+## 
+
+##
+## closing procedure:
+## The function verifies whether the storage is in the memory. If it is not in
+## the memory, it calls dbDisconnect right away and returns NULL invisibly. If
+## it is in the memory, the function verify if a file with the specified (or
+## default) file name is already present. If it is present, it verify if it is
+## allowed to overwrite an existing file. If not, it aborts issuing an error
+## message. If it may overwrite, it deletes the existing file. Then, it creates
+## an empty SQLite connection with the file name, copies the in-memory database
+## into it, and close both the in-memory and the in-file data base connections.
+## 
+
 PCplot <- function(net, ...) {
   
   dbGetQuery(

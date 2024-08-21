@@ -382,7 +382,7 @@ read.TraitEvolMod <- function(cfg) {
 #' 
 #' @export
 traitEvolMod <- function(par) {
-  if(class(par) != "TEMcfg")
+  if(!inherits(par, "TEMcfg"))
     stop("The argument must be a of class TEMcfg!")
   name <- par$name
   sigma <- par$sigma

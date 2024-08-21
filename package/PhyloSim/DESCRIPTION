@@ -8,9 +8,9 @@ Maintainer: Guillaume Guénard <guillaume.guenard@umontreal.ca>
 Description: Simulation of DNA sequences evolution as a Markov process at the
         scale of single nucleotides, with the purpose of generating simulated
         data for deep learning model developments.
-Depends: R (>= 3.5.0), yaml, magrittr, DBI
-Suggests: knitr, xfun, keras
-Imports: Rcpp (>= 1.0.11), RSQLite
+Depends: R (>= 3.5.0), yaml, magrittr, DBI, RSQLite
+Suggests: knitr, xfun
+Imports: Rcpp (>= 1.0.11), MPSEM
 License: GPL-3
 LazyLoad: yes
 NeedsCompilation: yes

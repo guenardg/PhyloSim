@@ -1,0 +1,175 @@
+---
+title: "Phylogenetic eigenvector maps (PEM): Theory and practice"
+author: Guillaume Guénard & Pierre Legendre
+institute: Université de Montréal -- Département de sciences biologiques
+date: 2024-09-15
+format:
+  revealjs:
+    transition: none
+    transition-speed: slow
+    incremental: true
+editor: visual
+editor_options:
+  markdown:
+    wrap: 80
+---
+
+```{r, results='hide'}
+library(knitr)
+source("PEM_seminar-aux.R")
+load(file="linear.rda")
+```
+
+# Part I: Theory
+
+## Equations {transition="slide"}
+
+$$
+\bar{x} = \frac{\sum_{i=0}^N x_i}{N}
+$$
+
+$$
+\mathrm{e}^{i\pi} - 1 = 0
+$$
+
+$$
+\cos^2(x) + \sin^2(x) = 1
+$$
+
+$$
+\mathbf{X} \mathbf{u}_i = \lambda_i \mathbf{u}_i
+$$
+
+$$
+\mathbf{X} \mathbf{v}_i = \sigma_i \mathbf{u}_i
+$$
+
+## SVD {transition="slide"}
+
+```{r, echo=TRUE}
+mat <- matrix(c(1,3,1,6,7,4),3,2)
+tmp <- svd(mat)
+mat %*% tmp$v
+tmp$u %*% diag(tmp$d)
+```
+
+## The influence matrix
+
+- Rows represent the vertices
+
+- Columns represent the edges
+
+- Notation: $\mathbf{B} = [b_{i,j}]$ (binary)
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_graph(linear, "\"")
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 1L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 2L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 3L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 4L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 5L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 6L)
+```
+
+## Rows represent the vertices
+
+```{r, fig.height=3, fig.width=6}
+plot1_vertex(linear, 7L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_graph(linear, "\"")
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 1L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 2L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 3L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 4L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 5L)
+```
+
+## Columns represent the edges
+
+```{r, fig.height=3, fig.width=6}
+plot1_edge(linear, 6L)
+```
+
+## The influence matrix
+
+### Values
+
+- The path between the root and vertex $i$ goes through edge $j$?
+  
+  > vertex $i$ is under the influence of edge $j$ $\implies$ $b_{i,j} = 1$
+  
+- Otherwise
+  
+  > $b_{i,j} = 0$
+
+## Values of the influence matrix
+
+```{r, fig.height=3, fig.width=6}
+plot1_influence(linear, 1L, 1L)
+```
+
+
+
+
+# Part II: practice

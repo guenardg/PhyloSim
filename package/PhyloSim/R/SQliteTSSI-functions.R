@@ -5,7 +5,7 @@
 ##        Université de Montréal
 ##        Montreal, QC, Canada
 ##
-##    ** Trait Evolution Simulation - SQLite TSI Functions **
+##    ** Trait Evolution Simulation - SQLite TSSI Functions **
 ##
 ##    This file is part of PhyloSim
 ##
@@ -29,70 +29,165 @@
 #' 
 #' SQLite Trait Simulation Interface
 #' 
-#' A database interface for simulating traits along evolutionaly time on linear
+#' A database interface for simulating traits along evolutionary time on linear
 #' evolutionary series, phylogenerit trees, or phylogenetic networks.
 #' 
-#' @name SQLite-TSI
+#' @name SQLite-TSSI
 #' 
-#' @aliases connectNetwork ClearNetwork makeLinearNetwork makeTreeNetwork
-#' makeReticulatedNetwork
+#' @aliases openNetwork closeNetwork makeLinearNetwork makeTreeNetwork
+#' makeReticulatedNetwork simulateSequence simulateTrait drawDNASequence
+#' drawEvolRate
 #' 
-#' @param name The name of the SQLite database, sequence, or trait to be created
-#' (character).
-#' @param init Whether or not to initialize the SQLite database upon creation
-#' (logical).
-#' @param net A two elements list containing the name of the database an a
-#' SQLite database connection from function \code{\link[DBI]{dbConnect}}.
-#' @param delete Whether to delete the database file upon closing the database.
-#' @param NS The number of sequences to generate (integer).
+#' @param filename A character string; the name of the SQLite database file,
+#' without the ".sim" suffix. The default depends on the function (see details).
+#' @param load A logical; should the database specified using argument
+#' \code{filename} be loaded in the computer memory instead of accessed from the
+#' file. The default is \code{FALSE}: access from the file.
+#' @param save A logical; when the SQLite database has been created in the
+#' computer memory, whether or not to save it before to close it. It is ignored
+#' for an SQLite database stored in a file. The default is \code{TRUE}
+#' @param overwrite A logical; whether or not to erase an existing database file
+#' with the same name as the one specified by argument \code{filename} before
+#' saving an SQLite database that has been created in the computer memory. The
+#' default is \code{FALSE}. See detail section for more details.
+#' @param net A two elements list: the name of the network and an SQLite
+#' database connection from function \code{\link[DBI]{dbConnect}}.
+#' @param NS An integer; the number of sequences to generate.
 #' @param NC A function without arguments returning the simulated number of
 #' children for each ancestor (see details).
-#' @param timestep A function (without arguments) returning the value (numeric)
+#' @param timestep A function without arguments returning the value (numeric)
 #' of the time step during the simulation (see details).
-#' @param root Whether to root the series or not (logical; default:
+#' @param root A logical; whether or not to root the series (default:
 #' \code{TRUE}). It is carried out on new data series (a single lineage, tree,
 #' or network) and set to \code{FALSE} when extending an existing data series
 #' (see details).
-#' @param verbose Whether to print details about the simulation process during
-#' the calculations (logical; default: \code{FALSE}).
+#' @param verbose A logical; whether or not to print details about the
+#' simulation process during the calculations (default: \code{FALSE}).
 #' @param NP A function without arguments returning the number of parents during
 #' a hybridization event.
-#' @param maxDiss The maximum distance (in term of the value of argument
-#' \code{timestep}.)
-#' @param contrib A function returning the relative contribution of the
-#' different parents during an hybridization event.
-#' @param NN The number of locations to be generated (integer). A locations is
-#' either one of the four nucleotides or a gap).
-#' @param prob Probabilities for drawing a gap (-) or one of the for DNA bases
-#' (A, C, G, or T), in that order (A length 5 numeric vector). Default:
-#' \code{c(0.3,0.175,0.175,0.175,0.175)}. Probabilities not summing to 1 will be
-#' made to sum to 1.
-#' @param gamma.shape Shape parameter of the beta distribution used to draw the
-#' nucleotide (and gaps) evolution rates (numeric).
-#' @param gamma.scale Scale parameter of the beta distribution used to draw the
-#' nucleotide (and gaps) evolution rates (numeric).
-#' @param I A 5 x 5 transition intensity matrix (see
+#' @param maxDiss A numeric; the maximum distance, in term of the value of
+#' argument \code{timestep}, beyond which hybridization is disallowed to occur.
+#' @param contrib A function taking the number of parents as its one argument,
+#' and returning a numeric vector of the same length as the number of parents
+#' giving the relative contribution of these parents during an hybridization
+#' event (see details).
+#' @param name A character string; the name of the DNA sequence or trait to be
+#' simulated or retrieved.
+#' @param NN An integer; the number of locations to be generated. A locations is
+#' either one of the four nucleotides or a gap.
+#' @param prob A length 5 numeric vector with a sum of 1; probabilities for
+#' drawing a gap (-) or one of the for DNA bases (A, C, G, or T), in that order.
+#' Default is \code{c(0.3,0.175,0.175,0.175,0.175)}. Probabilities not summing
+#' to 1 are made to sum to 1.
+#' @param gamma.shape A numeric; shape parameter of the beta distribution used
+#' to draw the nucleotide (and gaps) evolution rates.
+#' @param gamma.scale A numeric; scale parameter of the beta distribution used
+#' to draw the nucleotide (and gaps) evolution rates.
+#' @param I A 5 x 5 numeric matrix; transition intensity matrix (see
 #' \code{\link[PhyloSim]{molEvolMod}} for details).
-#' @param sqn A raw vector containing the seed sequence used at the root of the
-#' network.
-#' @param rate A vector of nucleotide evolution rates (numeric).
-#' @param tem A trait evolution model (see \code{\link[PhyloSim]{traitEvolMod}}
-#' for the details.)
-#' @param state For a trait evolving according to an Ornstein Uhlenbeck process,
-#' trait state at the onset of the simulation.
-#' @param value Value of the trait at the onset of the simulation.
-#' @param note Note about the trait to be stored in the SQLite database.
-#' @param removeGapOnly Remove positions that are all gaps from the output
-#' (logical; default: \code{TRUE}).
+#' @param sqn A raw vector; the seed sequence used at the root of the network.
+#' @param rate A numeric vector of length \code{NN}; values of nucleotide
+#' evolution rate.
+#' @param tem A trait evolution model; see \code{\link[PhyloSim]{traitEvolMod}}
+#' for the details.
+#' @param state An integer; for a trait evolving according to an
+#' Ornstein-Uhlenbeck process, index of the trait state at the onset of the
+#' simulation.
+#' @param value A numeric; value of the trait at the onset of the simulation.
+#' @param note A character string; note about the trait to be stored in the
+#' SQLite database.
+#' @param removeGapOnly A logical; whether or not to remove positions that are
+#' all gaps from the output (default: \code{TRUE}).
 #' 
-#' @details Details here...
+#' @details The simulation workflow involves the following xxx steps:
+#' 
+#' Firstly, a network is opened, either in the computer memory or into a file.
+#' Opening a database in the computer memory is much faster than opening it into
+#' a file, but uses computer memory more heavily. A memory database is preferred
+#' whenever possible. It is also possible to make part of the process in the
+#' memory, then close the connection while saving into a file, and then opening
+#' the same database as a file and perform the more memory-intensive tasks
+#' directly into a file. That task is performed by function
+#' \code{openNetwork()}. That function opens a database connection and creates
+#' the necessary tables for a new database. When argument
+#' \code{filename = NULL}, the database created resides in the computer memory,
+#' whereas when argument \code{filename} is a valid and accessible file path,
+#' the database created resides in the specified file. If the database file
+#' already exists, it is opened and any of the tables required by the simulation
+#' process is only created if it is not already present.
+#' 
+#' Secondly, a single simulated network is generated in the database using one
+#' of three available function: \code{makeLinearNetwork},
+#' \code{makeTreeNetwork}, and \code{makeReticulatedNetwork}, which are shown
+#' here in increasing order of complexity. These functions share arguments
+#' \code{net}, \code{NS}, \code{NC}, \code{timestep}, \code{root}, and
+#' \code{verbose}.
+#' 
+#' Function \code{makeLinearNetwork()} creates a simple linear network by taking
+#' the last node created as the parent of the new descendant node(s). While
+#' more than one descendant per not is allowed, the function will produce a
+#' consistent linear backbone of ancestors, somewhat similar to a minimum
+#' spanning tree, albeit not formally one.
+#' 
+#' Function \code{makeTreeNetwork()} has the very same arguments as
+#' \code{makeLinearNetwork()}, but will extend the network randomly from any
+#' ancestors that still can bear a descendant, resulting in a structure with
+#' greater arborescence than a single linear backbone.
+#' 
+#' Function \code{makeReticulatedNetwork()} has three more arguments, namely
+#' \code{NP}, \code{maxDiss}, and \code{contrib}, and also perform a more
+#' complex task. It creates a reticulated network where descendants are allowed
+#' to have multiple parents. The number of parents is drawn randomly by the
+#' function given to argument \code{NP}. When the number of parent drawn is
+#' larger than 1, a single ancestor is selected randomly as the first parent.
+#' Than the remaining parents are drawn among the available ancestors within a
+#' certain maximum hybridization distance (drawn by the function given to
+#' argument \code{maxDiss}) from the first parent. Then, the relative
+#' contributions of the parents are drawn by the function given to argument
+#' \code{contrib}. This process results in a random directed graph with a
+#' more or less reticulated structure depending on the choice of parameters.
+#' 
+#' Thirdly, it is possible to populate the network with any number of simulated
+#' DNA sequences or simulated traits using functions \code{simulateSequence()}
+#' and \code{simulateTrait()}, respectively.
+#' 
+#' Function \code{simulateSequence()} assigns a random sequence at the root node
+#' of the network through its argument \code{sqn}, and also takes a set of
+#' evolution rate (one for each location) through its argument \code{rate}.
+#' The sequence also needs to be given a name (unique for each network; argument
+#' \code{name}) and, optionally, a textual note about it can be added (argument
+#' \code{note}). The DNA sequence evolution is simulated as a Markov process
+#' described by the transition intensity matrix given as argument \code{I}. This
+#' process is described in \code{\link[PhyloSim]{molEvolMod}}. 
+#' 
+#' Function \code{simulateTrait()} assigns a value to the trait (and,
+#' optionally, the optimal trait state) at the root node of the network through
+#' its argument \code{value} (and, optionally, \code{state}). As for
+#' \code{simulateSequence()}, the trait also needs to be given a name (unique
+#' for each network; argument \code{name}) and, optionally, a textual note about
+#' the it can be added (argument \code{note}). Trait evolution is simulated as
+#' a combination of the Ornstein-Uhlenbeck and Markov processes described in
+#' \code{\link[PhyloSim]{traitEvolMod}}.
+#' 
+#' Fourthly, the sequences and traits are generated can be retrieved using
+#' functions \code{getSequence()} and \code{getTrait()}.
+#' 
+#' Finally, the network can be closed using function \code{closeNetwork}. If it
+#' has been residing in the computer memory, it is the occasion to copy it to a
+#' file by providing a value to argument \code{filename}. It the file already
+#' exists, \code{closeNetwork} will have to be allowed to overwrite it by
+#' passing argument \code{overwrite = TRUE}. Otherwise, the function will end in
+#' an error. If argument \code{save = FALSE} (the default is \code{TRUE}), the
+#' the network will be discarded if it resides in the computer memory. Arguments
+#' \code{filename}, \code{save}, and \code{overwrite} are not used when closing
+#' a network residing in a file.
 #' 
 #' @return
 #' \describe{
-#'   \item{connectNetwork}{A two elements list containing the name of the
-#'   database an a SQLite database connection from function
+#'   \item{openNetwork}{A two elements list containing the name of the database
+#'   and an SQLite database connection from function
 #'   \code{\link[DBI]{dbConnect}}.}
-#'   \item{clearNetwork}{\code{NULL} (invisibly).}
+#'   \item{closeNetwork}{\code{NULL} (invisibly).}
 #'   \item{makeLinearNetwork}{The number of the last node that has been
 #'   created.}
 #'   \item{makeTreeNetwork}{The number of the last node that has been created.}
@@ -107,7 +202,11 @@
 #'   \item{simulateSequence}{\code{NULL} (invisibly).}
 #'   \item{simulateTrait}{\code{NULL} (invisibly).}
 #'   \item{getSequence}{A vector of type character.}
+#'   \item{getTrait}{A three-column data frame with the node numbers, optimum
+#'   values and trait values.}
 #' }
+#' 
+#' @author \packageAuthor{PhyloSim}
 #' 
 #' @examples ## Load the example of a configuration file provided with the
 #' ## package:
@@ -132,8 +231,8 @@
 #' 
 #' ### Linear case:
 #' 
-#' ## Initializing a new data base to store the network:
-#' net <- connectNetwork(name = "net_linear", init = TRUE)
+#' ## Open an empty data base in a file to store the network (slow):
+#' net <- openNetwork(filename = "net_linear.sim")
 #' 
 #' ## Setting RNG seed to have a consistent example:
 #' set.seed(162745)
@@ -276,23 +375,11 @@
 #'   con = net$con
 #' )
 #' 
-#' ## To obtain the trait values at the nodes, one has to use an SQL query (in
-#' ## the SQLite dialect) as follows:
+#' ## One can obtain the trait values at the nodes as follows:
 #' lapply(
 #'   sprintf("trait%d",1:4),
-#'   function(x, con)
-#'     dbGetQuery(
-#'       con,
-#'       sprintf(
-#'         "SELECT trait_content.node, trait_content.optim, trait_content.value
-#'          FROM trait_content
-#'          JOIN trait ON trait.rowid = trait_content.trait
-#'          WHERE trait.name = '%s'
-#'          ORDER BY trait_content.node",
-#'         x
-#'       )
-#'     ),
-#'   con = net$con
+#'   function(x)
+#'     getTrait(net, x)
 #' ) -> sim_trait
 #' 
 #' ## Plot the trait simulation results:
@@ -310,14 +397,20 @@
 #' }
 #' ## Note: there are no effective optimum for a trait evolving neutrally.
 #' 
-#' ## Clear the simulated linear network:
-#' clearNetwork(net, TRUE)
+#' ## Close the simulated linear network while saving the data:
+#' closeNetwork(net, filename = "net_linear.sim")
+#' 
+#' ## Reopen in the computer memory (load = TRUE):
+#' net <- openNetwork(filename = "net_linear.sim", load = TRUE)
+#' 
+#' ## Close the network for good:
+#' closeNetwork(net, save = FALSE)
 #' 
 #' 
 #' ### Tree case:
 #' 
-#' ## Initializing a new data base to store the network:
-#' net <- connectNetwork(name = "net_linear", init = TRUE)
+#' ## Initializing an empty data base in memory to store the network (fast):
+#' net <- openNetwork()
 #' 
 #' ## Setting RNG seed to have a consistent example:
 #' set.seed(162745)
@@ -376,59 +469,37 @@
 #'     note = cond$note[i]
 #'   )
 #' 
-#' ## To obtain the trait values at the nodes, one has to use an SQL query (in
-#' ## the SQLite dialect) as follows:
+#' ## One can obtain the trait values at the nodes as follows:
 #' lapply(
 #'   sprintf("trait%d",1:4),
-#'   function(x, con)
-#'     dbGetQuery(
-#'       con,
-#'       sprintf(
-#'         "SELECT trait_content.node, trait_content.optim, trait_content.value
-#'          FROM trait_content
-#'          JOIN trait ON trait.rowid = trait_content.trait
-#'          WHERE trait.name = '%s'
-#'          ORDER BY trait_content.node",
-#'         x
-#'       )
-#'     ),
-#'   con = net$con
+#'   function(x)
+#'     getTrait(net, x)
 #' ) -> sim_trait
 #' 
 #' ## Showing the sequences and traits evolving is not as straightforward for a
 #' ## phylogenetic tree as it is for a linear sequence of descendants.
 #' 
-#' ## We first need to retrieve the edge list as follows:
-#' dbGetQuery(
-#'   net$con,
-#'   "SELECT i,j FROM edge ORDER BY rowid"
-#' ) -> edge
-#' 
-#' ## From that list, we can determine which node is a leaf:
-#' leaf <- edge$j[!(edge$j %in% unique(edge$i))]
+#' ## We can determine which node is a leaf as follows:
+#' leaf <- getLeaves(net)
 #' leaf
 #' 
-#' ## We can use this simple function to obtain lineage of any node:
-#' getLineage <- function(x, e) {
-#'   while(length(wh <- which(e$j == head(x,1))))
-#'     x <- c(e$i[wh], x)
-#'   unname(x)
-#' }
+#' ## The lineage of each leaf is obtained as follows:
+#' lineages <- getLineage(net, leaf)
 #' 
 #' ## Here is the lineage of the first leaf:
-#' getLineage(leaf[1], edge)
+#' lineages[[1L]]
 #' 
 #' ## Show the first sequence (here, the y-axis corresponds to the time step):
 #' net %>%
-#'   getSequence(name = "SEQ1") %>%
-#'   .[getLineage(leaf[1], edge),] %>%
+#' getSequence(name = "SEQ1") %>%
+#'   .[lineages[[1L]],] %>%
 #'   concatenate(discard = "-") %>%
 #'   show.sequence
-#' 
+#'   
 #' ## Show the second sequence:
 #' net %>%
-#'   getSequence(name = "SEQ2") %>%
-#'   .[getLineage(leaf[1], edge),] %>%
+#' getSequence(name = "SEQ2") %>%
+#'   .[lineages[[2L]],] %>%
 #'   concatenate(discard = "-") %>%
 #'   show.sequence
 #' 
@@ -442,8 +513,8 @@
 #' ) -> dst
 #' 
 #' ## Function to show every lineages 'l':
-#' plotit <- function(l) {
-#'   nn <- getLineage(leaf[l], edge)
+#' plotit <- function(nn) {
+#'   
 #'   dd <- dst$d[match(nn, dst$j)]
 #'   
 #'   ## Plot the trait simulation results:
@@ -452,33 +523,31 @@
 #'        ylim=range(-25,sapply(sim_trait, function(x) x$value),80))
 #'   col <- c("black","red","blue","green")
 #'   
-#'   ## The solid line is the trait value, whereas the dotted line is the
-#'   ## effective trait optimum:
+#'   ## The solid line is the trait value, whereas the dotted line is the effective
+#'   ## trait optimum:
 #'   for(i in 1:4) {
 #'     lines(x=dd, y=sim_trait[[i]]$value[match(nn, dst$j)], col=col[i])
 #'     if(!all(is.na(sim_trait[[i]]$optim)))
-#'       lines(x=dd, y=sim_trait[[i]]$optim[match(nn, dst$j)], col=col[i],
-#'             lty=3)
+#'       lines(x=dd, y=sim_trait[[i]]$optim[match(nn, dst$j)], col=col[i], lty=3)
 #'   }
 #'   ## Note: there are no effective optimum for a trait evolving neutrally.
 #' }
 #' 
 #' ## Plot the lineages of some of the leaves:
-#' plotit(1)
-#' plotit(2)
-#' plotit(3)
-#' plotit(6)
-#' plotit(7)
+#' plotit(lineages[[1]])
+#' plotit(lineages[[2]])
+#' plotit(lineages[[3]])
+#' plotit(lineages[[6]])
+#' plotit(lineages[[7]])
 #' 
 #' ## Clear the simulated linear network:
-#' clearNetwork(net, TRUE)
+#' closeNetwork(net)
 #' 
 #' 
 #' ### The reticulated case:
 #' 
-#' ## Initializing a new data base to store the network:
-#' net <- connectNetwork(name = "net_reticulated", init = TRUE)
-#' ## clearNetwork(net, TRUE)
+#' ## Open an empty data base in computer memory to store the network (fast):
+#' net <- openNetwork()
 #' 
 #' ## Setting RNG seed to have a consistent example:
 #' set.seed(162745)
@@ -532,38 +601,19 @@
 #'     note = cond$note[i]
 #'   )
 #' 
-#' ## To obtain the trait values at the nodes, one has to use an SQL query (in
-#' ## the SQLite dialect) as follows:
+#' ## One can obtain the trait values at the nodes as follows:
 #' lapply(
 #'   sprintf("trait%d",1:4),
-#'   function(x, con)
-#'     dbGetQuery(
-#'       con,
-#'       sprintf(
-#'         "SELECT trait_content.node, trait_content.optim, trait_content.value
-#'          FROM trait_content
-#'          JOIN trait ON trait.rowid = trait_content.trait
-#'          WHERE trait.name = '%s'
-#'          ORDER BY trait_content.node",
-#'         x
-#'       )
-#'     ),
-#'   con = net$con
+#'   function(x)
+#'     getTrait(net, x)
 #' ) -> sim_trait
 #' 
 #' ## Showing the sequences and traits evolving is even less straightforward for
 #' ## a reticulated phylogenetic network as it is for a phylogenetic tree, let
 #' ## alone for a linear sequence of descendants.
 #' 
-#' ## We first need to retrieve the edge list as follows (same as for a tree):
-#' dbGetQuery(
-#'   net$con,
-#'   "SELECT i,j FROM edge ORDER BY rowid"
-#' ) -> edge
-#' 
-#' ## From that list, we can determine which node is a leaf (also same as for a
-#' ## tree):
-#' leaf <- unique(edge$j[!(edge$j %in% unique(edge$i))])
+#' ## We can determine which node is a leaf as follows:
+#' leaf <- getLeaves(net)
 #' leaf
 #' 
 #' ## Obtain the distances between the root node and all the nodes:
@@ -575,44 +625,36 @@
 #'   )
 #' ) -> dst
 #' 
-#' ## To obtain simple lineage, we need a criterion to choose which parent to
-#' ## follow at hybridization events. Here, the parent that is the closest to
-#' ## the root is the one chosen:
-#' getLineageDR <- function(x, e, d) {
-#'   while(length(wh <- which(e$j == head(x,1)))) {
-#'     wh <- wh[which.min(d$d[match(e$i[wh],d$j)])]
-#'     x <- c(e$i[wh], x)
-#'   }
-#'   unname(x)
-#' }
+#' ## The lineage of each leaf is obtained as follows:
+#' lineages <- getLineage(net, leaf)
 #' 
 #' ## Here is the lineage of the first leaf of the network:
-#' getLineageDR(leaf[1], edge, dst)
+#' lineages[[1L]]
 #' 
 #' ## Show the sequences of the lineage of the first leaf:
 #' net %>%
 #'   getSequence(name = "SEQ1") %>%
-#'   .[getLineageDR(leaf[1], edge, dst),] %>%
+#'   .[lineages[[1L]],] %>%
 #'   concatenate(discard = "-") %>%
 #'   show.sequence
 #' 
 #' ## Show the sequences of the lineage of the second leaf:
 #' net %>%
 #'   getSequence(name = "SEQ1") %>%
-#'   .[getLineageDR(leaf[2], edge, dst),] %>%
+#'   .[lineages[[2L]],] %>%
 #'   concatenate(discard = "-") %>%
 #'   show.sequence
 #' 
 #' ## Show the sequences of the lineage of the third leaf:
 #' net %>%
 #'   getSequence(name = "SEQ1") %>%
-#'   .[getLineageDR(leaf[6], edge, dst),] %>%
+#'   .[lineages[[3L]],] %>%
 #'   concatenate(discard = "-") %>%
 #'   show.sequence
 #' 
 #' ## Function to show every lineages 'l':
-#' plotit <- function(l) {
-#'   nn <- getLineageDR(leaf[l], edge, dst)
+#' plotit <- function(nn) {
+#'   
 #'   dd <- dst$d[match(nn, dst$j)]
 #'   
 #'   ## Plot the trait simulation results:
@@ -633,71 +675,101 @@
 #' }
 #' 
 #' ## Plot the lineages of some of the leaves:
-#' plotit(7)
-#' plotit(15)
-#' plotit(22)
-#' plotit(length(leaf))
+#' plotit(lineages[[7]])
+#' plotit(lineages[[15]])
+#' plotit(lineages[[22]])
+#' plotit(unlist(tail(lineages,1)))
 #' 
-#' ## Clear the simulated linear network:
-#' clearNetwork(net, TRUE)
+#' ## Close the simulated reticulated network, discarding it:
+#' closeNetwork(net, save = FALSE)
 #' 
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom RSQLite SQLite
+#' ## Erase the database files:
+#' file.remove(sprintf("net_%s.sim", c("linear","tree","reticulated")))
+#' 
+#' @importFrom DBI dbConnect dbDisconnect dbListTables
+#' @importFrom RSQLite SQLite sqliteCopyDatabase
 #' @importFrom stats rgamma
 #' 
 NULL
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
-#' Create Network
+#' Open Network
 #' 
-#' Create an SQLite database in which to simulate various evolutionary series.
+#' Opens an SQLite database in which to simulate various evolutionary series.
 #' 
 #' @export
-connectNetwork <- function(name, init = FALSE) {
+openNetwork <- function(filename = NULL, load = FALSE) {
   
-  net <- list(name=sprintf("%s.sqlite",name))
+  yaml.load_file(
+    system.file(
+      package = "PhyloSim",
+      "extdata",
+      "SQLiteAPI.yml"
+    )
+  ) -> cfg
   
-  net$con <- dbConnect(SQLite(), net$name)
+  net <- list(name = if(!load) filename else NULL)
   
-  if(init) {
-    yaml.load_file(
-      system.file(
-        package = "PhyloSim",
-        "extdata",
-        "SQLiteAPI.yml"
-      )
-    ) -> cfg
-    
-    cfg %>%
-      lapply(
-        function(x, net) dbExecute(net$con, x$create),
-        net = net
-      ) %>%
-      unlist
-  }
+  if(is.null(filename)) {
+    net$con <- dbConnect(SQLite(), ":memory:")
+  } else if(load) {
+    con <- dbConnect(SQLite(), filename)
+    net$con <- dbConnect(SQLite(), ":memory:")
+    sqliteCopyDatabase(con, net$con)
+    dbDisconnect(con)
+  } else
+    net$con <- dbConnect(SQLite(), filename)
+  
+  tbl <- dbListTables(net$con)
+  
+  lapply(
+    cfg[!(names(cfg) %in% tbl)],
+    function(x) dbExecute(net$con, x$create)
+  )
   
   net
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
-#' Clear Network
+#' Close Network
 #' 
-#' Close an SQLite database, possibly deleting the database file.
+#' Closes an SQLite database, with some saving options.
 #' 
 #' @export
-clearNetwork <- function(net, delete = FALSE) {
+closeNetwork <- function(net, save = TRUE, overwrite = FALSE,
+                         filename = "default") {
   
-  dbDisconnect(net$con)
-  
-  if(delete)
-    file.remove(net$name)
+  if(is.null(net$name)) {
+    
+    if(save) {
+      
+      if(file.exists(filename)) {
+        if(overwrite) {
+          file.remove(filename)
+        } else
+          stop(
+            "Cannot save because file '",filename,
+            "' exists and argument overwrite = FALSE"
+          )
+      }
+      
+      con <- dbConnect(SQLite(), filename)
+      sqliteCopyDatabase(net$con, con)
+      dbDisconnect(con)
+      dbDisconnect(net$con)
+      
+    } else
+      dbDisconnect(net$con)
+    
+  } else
+    dbDisconnect(net$con)
   
   invisible(NULL)
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Linear Evolutionary Series
 #' 
@@ -731,7 +803,7 @@ makeLinearNetwork <- function(net, NS, NC, timestep, root = TRUE,
   node
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Phylogenetic Tree
 #' 
@@ -766,7 +838,7 @@ makeTreeNetwork <- function(net, NS, NC, timestep, root = TRUE,
   node
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Phylogenetic Network
 #' 
@@ -816,7 +888,7 @@ makeReticulatedNetwork <- function(net, NS, NC, NP, timestep, maxDiss,
   node
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Random Sequence Generator
 #' 
@@ -831,7 +903,7 @@ drawDNASequence <- function(NN, prob = c(0.3, rep(0.175, 4L)))
     replace = TRUE
   )
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Random Evolution Rate Generator
 #' 
@@ -846,7 +918,7 @@ drawEvolRate <- function(NN, gamma.shape = 5, gamma.scale = 5e-04)
     scale = gamma.scale
   )
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Sequence Evolution Simulator
 #' 
@@ -956,7 +1028,7 @@ simulateSequence <- function(net, I, name, sqn, rate, note = "") {
   invisible(NULL)
 }
 #' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Trait Evolution Simulator
 #' 
@@ -1062,8 +1134,7 @@ simulateTrait <- function(net, tem, name, state, value, note = "") {
   invisible(NULL)
 }
 #' 
-#' 
-#' @describeIn SQLite-TSI
+#' @describeIn SQLite-TSSI
 #' 
 #' Sequence Exractor
 #' 
@@ -1093,4 +1164,30 @@ getSequence <- function(net, name, removeGapOnly = TRUE) {
     sqn %<>% .[,apply(., 2L, function(x) !all(x == charToRaw("-")))]
   
   sqn
+}
+#' 
+#' @describeIn SQLite-TSSI
+#' 
+#' Trait Exractor
+#' 
+#' Extracts all the nodal optima and values of a given trait from a phylogenetic
+#' network.
+#' 
+#' @export
+getTrait <- function(net, name) {
+  
+  if(!(name %in% unlist(dbGetQuery(net$con,"SELECT name FROM trait"))))
+    stop("There is no trait named '", name, "' associated with this network")
+  
+  dbGetQuery(
+    net$con,
+    sprintf(
+      "SELECT trait_content.node, trait_content.optim, trait_content.value
+       FROM trait_content
+       JOIN trait ON trait_content.trait = trait.rowid
+       WHERE trait.name = '%s'
+       ORDER BY trait_content.node",
+      name
+    )
+  )
 }
